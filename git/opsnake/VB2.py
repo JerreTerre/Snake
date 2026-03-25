@@ -9,7 +9,7 @@ pygame.mixer.init()
 # Setup
 # =========================
 SIZE = 40
-WIDTH, HEIGHT = 1800, 1000
+WIDTH, HEIGHT = 1600, 800
 BG_COLOR = (99,167,66)
 
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -38,43 +38,33 @@ pygame.mixer.music.play(-1)
 # =========================
 # Classes
 # =========================
-class Levens:
-    def __init__(self):
-        self.image= pygame.image.load("git/opsnake/images/hartje.png").convert_alpha()
-        self.image=pygame.transform.scale(self.image,(SIZE,SIZE))
-        self.x=5
-        self.y=5
-    def draw(self):
-            screen.blit(self.image,(self.x,self.y))   
 class Muur:
     def __init__(self):
-        self.image= pygame.image.load("git/opsnake/images/muur.png").convert_alpha()
-        self.image=pygame.transform.scale(self.image,(SIZE,SIZE))
-        self.x=5
-        self.y=5
+        self.image = pygame.image.load("git/opsnake/images/muur.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image,(SIZE,SIZE))
         self.move()
+
     def move(self):
 
         self.x = random.randint(0,(WIDTH//SIZE)-1)*SIZE
         self.y = random.randint(0,(HEIGHT//SIZE)-3)*SIZE
+
     def draw(self):
         for i in range(3):
             screen.blit(self.image,(self.x,self.y+(i*SIZE)))    
-class Mine:
+class Mines:
     def __init__(self):
-        self.image= pygame.image.load("git/opsnake/images/mine.png").convert_alpha()
-        self.image=pygame.transform.scale(self.image,(SIZE,SIZE))
-        self.x=5
-        self.y=5
+        self.image = pygame.image.load("git/opsnake/images/mine.png").convert_alpha()
+        self.image = pygame.transform.scale(self.image,(SIZE,SIZE))
         self.move()
+
     def move(self):
 
         self.x = random.randint(0,(WIDTH//SIZE)-1)*SIZE
         self.y = random.randint(0,(HEIGHT//SIZE)-1)*SIZE
+
     def draw(self):
         screen.blit(self.image,(self.x,self.y))
-
-
 class Apple:
 
     def __init__(self):
@@ -99,10 +89,10 @@ class Snake:
         self.image = pygame.transform.scale(self.image,(SIZE,SIZE))
 
         self.direction = "right"
-        self.length = 1
+        self.length = 3
 
-        self.x = [SIZE*5]
-        self.y = [SIZE*5]
+        self.x = [SIZE*5]*self.length
+        self.y = [SIZE*5]*self.length
 
     def move(self):
 
@@ -129,6 +119,13 @@ class Snake:
         self.x.append(-100)
         self.y.append(-100)
 
+    def shrink(self):
+        if self.length>1:
+            self.length-=1
+            self.x.pop()
+            self.y.pop()
+        elif self.length==1:
+            dead()
 
     def draw(self):
 
@@ -157,7 +154,6 @@ class Snake:
 # =========================
 
 def draw_score(snake):
-    global score
 
     font = pygame.font.SysFont("arial",30)
 
@@ -165,7 +161,10 @@ def draw_score(snake):
 
     screen.blit(score,(WIDTH//2-70,10))
 
-
+def dead():
+    global state
+    death_sound.play()
+    state=GAMEOVER
 def draw_menu():
 
     screen.fill(BG_COLOR)
@@ -210,14 +209,13 @@ def draw_game_over(score):
 MENU = 0
 PLAYING = 1
 GAMEOVER = 2
-teller=0
+
 state = MENU
 speed = 10
 aantal=5
+walls=0
 snake = Snake()
 apple = Apple()
-aantal_levens = 0  # Dit moet een getal zijn voor de logica
-levens = []  # Dit is voor de hartjes-objecten
 mine=[]
 muur=[]
 # =========================
@@ -229,31 +227,34 @@ running = True
 while running:
 
     if state == MENU:
+
         draw_menu()
+
         for event in pygame.event.get():
+
             if event.type == pygame.QUIT:
-                running = False
+                running=False
 
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_1:
-                    aantal, wall ,start_levens= 5, 1,3
-                    state = PLAYING
-                if event.key == pygame.K_2:
-                    aantal, wall,start_levens = 10, 3,2
-                    state = PLAYING
-                if event.key == pygame.K_3:
-                    aantal, wall,start_levens = 20, 6,1
-                    state = PLAYING
 
-                if state == PLAYING:
-                    aantal_levens=start_levens
-                    levens  = [Levens() for _ in range(aantal_levens)]
-                    for i, h in enumerate(levens):
-                        h.x = 10 + (i * (SIZE + 5))
-                        h.y = 10
-                    mine = [Mine() for _ in range(aantal)]
-                    muur = [Muur() for _ in range(wall)]
-                    # Zorg dat de appel direct op een vrije plek start
+                if event.key == pygame.K_1:
+                    aantal=5
+                    walls=1
+                    state=PLAYING
+
+
+                if event.key == pygame.K_2:
+                    aantal=10
+                    walls=3
+                    state=PLAYING
+
+                if event.key == pygame.K_3:
+                    aantal=20
+                    walls=6
+                    state=PLAYING
+                if state==PLAYING:
+                    mine=[Mines() for _ in range(aantal)]
+                    muur = [Muur() for _ in range(walls)]
                     overlap = True
                     while overlap:
                         apple.move()
@@ -265,85 +266,114 @@ while running:
                             for i in range(3):
                                 if apple.x == w.x and apple.y == w.y + (i * SIZE):
                                     overlap = True
+                        for w in muur:
+                            for i in range(3):
+                                if m.x==w.x and m.y==w.y+(i*SIZE):
+                                    m.move()
+                                    overlap=True
+                    
 
     elif state == PLAYING:
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
-                running = False
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_LEFT and snake.direction != "right": snake.direction = "left"
-                if event.key == pygame.K_RIGHT and snake.direction != "left": snake.direction = "right"
-                if event.key == pygame.K_UP and snake.direction != "down": snake.direction = "up"
-                if event.key == pygame.K_DOWN and snake.direction != "up": snake.direction = "down"
 
-        # ... (Joystick logica blijft hetzelfde) ...
+        for event in pygame.event.get():
+
+            if event.type == pygame.QUIT:
+                running=False
+
+            if event.type == pygame.KEYDOWN:
+
+                if event.key == pygame.K_LEFT and snake.direction!="right":
+                    snake.direction="left"
+
+                if event.key == pygame.K_RIGHT and snake.direction!="left":
+                    snake.direction="right"
+
+                if event.key == pygame.K_UP and snake.direction!="down":
+                    snake.direction="up"
+
+                if event.key == pygame.K_DOWN and snake.direction!="up":
+                    snake.direction="down"
+
+
+        # joystick
+        for joystick in joysticks:
+
+            x_axis = joystick.get_axis(0)
+            y_axis = joystick.get_axis(1)
+
+            if abs(x_axis)>0.5:
+
+                if x_axis>0 and snake.direction!="left":
+                    snake.direction="right"
+
+                if x_axis<0 and snake.direction!="right":
+                    snake.direction="left"
+
+            elif abs(y_axis)>0.5:
+
+                if y_axis>0 and snake.direction!="up":
+                    snake.direction="down"
+
+                if y_axis<0 and snake.direction!="down":
+                    snake.direction="up"
+
 
         snake.move()
 
-        # Collisions
-        for w in muur:
-            for i in range(3):
-                if snake.x[0] == w.x and snake.y[0] == w.y + (i * SIZE):
-                    aantal_levens-=1
-                    for m in mine: m.move()
-                    for w in muur: w.move()
-                    if aantal_levens==0:
-                        death_sound.play()
-                        state = GAMEOVER
-        for m in mine:
- 
-            if snake.x[0] == m.x and snake.y[0] == m.y :
-                aantal_levens-=1
-                for m in mine: m.move()
-                for w in muur: w.move()
-                if aantal_levens==0:
-                    death_sound.play()
-                    state = GAMEOVER
-        
         if snake.x[0] == apple.x and snake.y[0] == apple.y:
+
             snake.grow()
             apple.move()
             apple_sound.play()
-            teller += 1
-            if teller == 5:
-                for m in mine: m.move()
-                teller = 0
-
+        for m in mine:
+            if snake.x[0]==m.x and snake.y[0]==m.y:
+                snake.shrink()
+                m.move()
+                
+        for w in muur:
+            for i in range(3):
+                if snake.x[0]==w.x and snake.y[0]==w.y+(i*SIZE):
+                    death_sound.play()
+                    state=GAMEOVER
         if snake.check_dead():
+
             death_sound.play()
             state = GAMEOVER
 
-        # Tekenen
+
         screen.fill(BG_COLOR)
-        # Teken muren en mijnen eerst
-        for w in muur: w.draw()
-        for m in mine: m.draw()
-        for i in range(aantal_levens):
-            levens[i].draw()
-        # Teken de appel als LAATSTE zodat hij bovenop ligt
+
         apple.draw()
         snake.draw()
+        for w in muur:
+            w.draw()
+        for m in mine:
+            m.draw()
         draw_score(snake)
+
         pygame.display.update()
+
         clock.tick(speed)
 
+
     elif state == GAMEOVER:
+
         draw_game_over(snake.length-1)
+
         for event in pygame.event.get():
+
             if event.type == pygame.QUIT:
-                running = False
+                running=False
+
             if event.type == pygame.KEYDOWN:
-                # AFSLUITEN MET ESC
-                if event.key == pygame.K_ESCAPE:
-                    running = False
-                # RESTART MET R
+
                 if event.key == pygame.K_r:
+
                     snake = Snake()
                     apple = Apple()
-                    mine = []
-                    muur = []
-                    teller = 0
+                    mine=[]
                     state = MENU
+
 
 pygame.quit()
 sys.exit()
